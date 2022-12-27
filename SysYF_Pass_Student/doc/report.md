@@ -6,15 +6,75 @@
 
 #### B1-1
 
+$证明: 反证法：x和y支配b，设r为有向图的起点（根），假设x和y不存在支配关系，则：$
+
+$因为y不支配x，所以存在一条从r到x的路径，使得这条路径不经过y$
+
+$因为x不支配y，所以存在一条从r到y的路径，使得这条路径不经过x$
+
+$由于存在一条r到x且不经过y的路径p1，又y支配b，因此任一从x到b的路径一定经过y(1)$
+
+$同理，任一从y到b的路径一定经过x(2)$
+
+$取一条r到b的路径，显然这一条路径不可能同时满足(1)和(2)$
+
+$由反证法可知，x和y一定存在支配关系，即要么x支配y，要么y支配x$
+
 #### B1-2
+
+不一定要以后序遍历的逆序进行。
+
+为了计算CFG的支配关系时，使数据更快地收敛，在计算每个节点时，需要其前驱节点的信息，因此使用逆后序遍历可以让数据更快速地收敛。
+
+但此处并非一定要使用逆后序，使用其他的遍历顺序也是可以的，只不过这样不能让数据快速收敛，可能需要更多轮次的迭代。
 
 #### B1-3
 
+The Engineered Algorithm中计算的不是节点n的支配集合Dom(n)，而是其直接支配节点IDom(n)，即支配树上离n节点最近的其支配节点。
+
+由于该算法在计算支配集合时，采取的是以下方式：
+
+$Dom(b) = \{b\} \cup IDom(b) \cup IDom(IDom(b)) ... \{n_0\}$
+
+因此在计算该节点的支配集合时，需要已经计算过其前驱节点的IDom，因此需要使用逆后序进行迭代
+
 #### B1-4
+
+Intersect()函数实现的是找到两个前驱在支配树中的最近公共祖先。
+
+内层两个while循环的小于号不能改成大于号，原论文中存在以下描述：
+
+*In this case, the comparisons are on postorder numbers; for each intersection, we start the two fingers at the ends of the two sets, and, until the fingers point to the same postorder number, we move the finger pointing to the smaller number back one element. Remember that nodes higher in the dominator tree have higher postorder numbers, which is why intersect moves the finger whose value is less than the other finger’s* 
+
+while循环使用小于号代表使用postorder向前查找。因为更高部分的节点在支配树中存在更高的后序遍历序号（nodes higher in the dominator tree have higher postorder numbers），因此使用小于号就可以起到向上查找祖先的效果。
 
 #### B1-5
 
+文章中存在以下描述：
+
+*This scheme has several advantages. It saves space by sharing representations—IDom(b) occurs once, rather than once in each Dom set that contains it. It saves time by avoiding the cost of allocating and initializing separate Dom sets for each node. It avoids data movement: with separate sets, each element in the result set of an intersection was copied into that set; with the doms array, none of those elements are copied.*
+
+可以看到，该算法在时间方面的优点是避免了对每个节点分配和初始化Dom sets的时间开销，同时，避免了数据移动到是的开销。
+
+在空间方面的优点是使用sharing representations来节省空间，使IDom(b)只出现一次而不是包含于每个Dom set中。
+
 #### B1-6
+
+RDominateTree.cpp中存在以下代码：
+
+```c++
+for(auto bb:f->get_basic_blocks()){
+		auto terminate_instr = bb->get_terminator();
+		if(terminate_instr->is_ret()){
+				exit_block = bb;
+				break;
+		}
+}
+```
+
+可以看出，在构建过程中确定EXIT节点的方式为：如果一个基本块的终止指令为ret指令，则这个基本块就是EXIT节点。
+
+因为EXIT节点为程序的出口节点，而在程序中可能会有多个return语句，在计算流图时，出口节点可能会在前面的return语句处，因此无法单纯地以流图中最后一个节点来作为程序的出口节点，此时选择终止指令为ret指令的基本块作为EXIT节点是最好的方式。
 
 ### Mem2Reg
 
