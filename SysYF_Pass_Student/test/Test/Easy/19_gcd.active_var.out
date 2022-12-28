@@ -1,8 +1,8 @@
 label_entry
 in:
-arg0 arg1 op36 
+arg0 arg1 
 out:
-arg0 arg1 op36 
+arg0 arg1 
 label_ret
 in:
 op37 
@@ -10,14 +10,14 @@ out:
 
 label13
 in:
-arg0 arg1 op36 
+arg0 arg1 
 out:
-arg0 arg1 op36 
+arg0 arg1 
 label17
 in:
-arg0 arg1 op36 
+arg0 arg1 
 out:
-op20 op34 op35 op36 
+op20 op34 op35 
 label21
 in:
 op20 op31 op34 op35 op36 op37 

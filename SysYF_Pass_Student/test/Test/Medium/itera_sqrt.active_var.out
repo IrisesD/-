@@ -1,8 +1,8 @@
 label_entry
 in:
-arg0 op26 
+arg0 
 out:
-arg0 op26 op6 
+arg0 op6 
 label_ret
 in:
 op26 
