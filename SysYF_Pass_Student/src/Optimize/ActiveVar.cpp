@@ -12,8 +12,152 @@ void ActiveVar::execute() {
         if (func->get_basic_blocks().empty()) {
             continue;
         } else {
-            func_ = func;  
-            
+            func_ = func;
+            std::map<BasicBlock*, std::set<Value*> > use_map;
+            std::map<BasicBlock*, std::set<Value*> > def_map;
+            std::map<BasicBlock*, std::map<Value*, BasicBlock*> > bb2pair_map;
+            for (auto bb : func_->get_basic_blocks()) {
+                std::set<Value*> use_set;
+                std::set<Value*> def_set;
+                std::map<Value*, BasicBlock*> pair_map;
+                for (auto inst : bb->get_instructions()) {
+                    if (inst->get_instr_type() == Instruction::OpID::phi) {
+                        auto hss = static_cast<PhiInst *>(inst)->get_operands();
+                        Value *lvalue = static_cast<PhiInst *>(inst)->get_lval();
+                        if (def_set.find(lvalue) == def_set.end()) {
+                            use_set.insert(lvalue);
+                        }
+                        Value* rvalue = dynamic_cast<Value *>(inst);
+                        def_set.insert(rvalue);
+                        int i = 0;
+                        for (;i < hss.size();i++) {
+                            if (i % 2 == 0) {
+                                pair_map[hss[i]] = dynamic_cast<BasicBlock*>(hss[i+1]);
+                            }
+                        }
+                    } else if (inst->get_instr_type() == Instruction::OpID::store) {
+                        Value *lvalue = static_cast<StoreInst *>(inst)->get_lval();
+                        Value *rvalue = static_cast<StoreInst *>(inst)->get_rval();
+                        if (def_set.find(lvalue) == def_set.end()) {
+                            use_set.insert(lvalue);
+                        }
+                        def_set.insert(rvalue);
+                    } else if (inst->get_instr_type() == Instruction::OpID::load) {
+                        Value *lvalue = static_cast<LoadInst *>(inst)->get_lval();
+                        Value* rvalue = dynamic_cast<Value *>(inst);
+                        if (def_set.find(lvalue) == def_set.end()) {
+                            use_set.insert(lvalue);
+                        }
+                        def_set.insert(rvalue);
+                    }else if(inst->get_instr_type() == Instruction::OpID::ret) {
+                        ReturnInst* ret_inst = static_cast<ReturnInst*>(inst);
+                        if (!ret_inst->is_void_ret()) {
+                            Value* hs = ret_inst->get_operand(0);
+                            if (def_set.find(hs) == def_set.end()) {
+                                use_set.insert(hs);
+                            }
+                        }
+                    } else if (inst->get_instr_type() == Instruction::OpID::br) {
+                        BranchInst* br_inst = static_cast<BranchInst*>(inst);
+                        if (br_inst->is_cond_br()) {
+                            Value* hs = br_inst->get_operand(0);
+                            if (def_set.find(hs) == def_set.end()) {
+                                use_set.insert(hs);
+                            }
+                        }
+                    } else if (inst->get_instr_type() == Instruction::OpID::add ||
+                            inst->get_instr_type() == Instruction::OpID::sub ||
+                            inst->get_instr_type() == Instruction::OpID::mul ||
+                            inst->get_instr_type() == Instruction::OpID::sdiv ||
+                            inst->get_instr_type() == Instruction::OpID::srem ||
+                            inst->get_instr_type() == Instruction::OpID::fadd ||
+                            inst->get_instr_type() == Instruction::OpID::fsub ||
+                            inst->get_instr_type() == Instruction::OpID::fmul ||
+                            inst->get_instr_type() == Instruction::OpID::fdiv) {
+                        Value* lhs = static_cast<BinaryInst *>(inst)->get_operand(0);
+                        Value* rhs = static_cast<BinaryInst *>(inst)->get_operand(1);
+                        Value* res = dynamic_cast<Value *>(inst);
+                        if (def_set.find(lhs) == def_set.end()) {
+                            use_set.insert(lhs);
+                        }
+                        if (def_set.find(rhs) == def_set.end()) {
+                            use_set.insert(rhs);
+                        }
+                        def_set.insert(res);
+                    } else if (inst->get_instr_type() == Instruction::OpID::alloca) {
+                        Value* value = dynamic_cast<Value *>(inst);
+                        def_set.insert(value);
+                    } else if (inst->get_instr_type() == Instruction::OpID::cmp) {
+                        Value* lhs = static_cast<CmpInst *>(inst)->get_operand(0);
+                        Value* rhs = static_cast<CmpInst *>(inst)->get_operand(1);
+                        Value* res = dynamic_cast<Value *>(inst);
+                        if (def_set.find(lhs) == def_set.end()) {
+                            use_set.insert(lhs);
+                        }
+                        if (def_set.find(rhs) == def_set.end()) {
+                            use_set.insert(rhs);
+                        }
+                        def_set.insert(res);
+                    } else if (inst->get_instr_type() == Instruction::OpID::fcmp) {
+                        Value* lhs = static_cast<FCmpInst *>(inst)->get_operand(0);
+                        Value* rhs = static_cast<FCmpInst *>(inst)->get_operand(1);
+                        Value* res = dynamic_cast<Value *>(inst);
+                        if (def_set.find(lhs) == def_set.end()) {
+                            use_set.insert(lhs);
+                        }
+                        if (def_set.find(rhs) == def_set.end()) {
+                            use_set.insert(rhs);
+                        }
+                        def_set.insert(res);
+                    } else if (inst->get_instr_type() == Instruction::OpID::call) {
+                        auto hss = static_cast<CallInst *>(inst)->get_operands();
+                        for (int i = 1;i < hss.size();i++) {
+                            if (def_set.find(hss[i]) == def_set.end()) {
+                                use_set.insert(hss[i]);
+                            }
+                        }
+                        auto call_inst = static_cast<CallInst *>(inst);
+                        if (!call_inst->is_void()) {
+                            auto res = dynamic_cast<Value *>(inst);
+                            def_set.insert(res);
+                        }
+                    } else if (inst->get_instr_type() == Instruction::OpID::getelementptr) {
+                        auto hss = static_cast<GetElementPtrInst *>(inst)->get_operands();
+                        for (auto hs : hss) {
+                            if (def_set.find(hs) == def_set.end()) {
+                                use_set.insert(hs);
+                            }
+                        }
+                        auto res = dynamic_cast<Value *>(inst);
+                        def_set.insert(res);
+                    } else if (inst->get_instr_type() == Instruction::OpID::zext) {
+                        auto hs = static_cast<ZextInst *>(inst)->get_operand(0);
+                        if (def_set.find(hs) == def_set.end()) {
+                            use_set.insert(hs);
+                        }
+                        auto res = dynamic_cast<Value *>(inst);
+                        def_set.insert(res);
+                    } else if (inst->get_instr_type() == Instruction::OpID::fptosi) {
+                        auto hs = static_cast<FpToSiInst *>(inst)->get_operand(0);
+                        if (def_set.find(hs) == def_set.end()) {
+                            use_set.insert(hs);
+                        }
+                        auto res = dynamic_cast<Value *>(inst);
+                        def_set.insert(res);
+                    } else if (inst->get_instr_type() == Instruction::OpID::sitofp) {
+                        auto hs = static_cast<SiToFpInst *>(inst)->get_operand(0);
+                        if (def_set.find(hs) == def_set.end()) {
+                            use_set.insert(hs);
+                        }
+                        auto res = dynamic_cast<Value *>(inst);
+                        def_set.insert(res);
+                    }
+                }
+                use_map[bb] = use_set;
+                def_map[bb] = def_set;
+                bb2pair_map[bb] = pair_map;
+            }
+
             /*you need to finish this function*/
         }
     }
