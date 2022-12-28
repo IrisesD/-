@@ -20,6 +20,7 @@ void ActiveVar::execute() {
                 std::set<Value*> use_set;
                 std::set<Value*> def_set;
                 std::map<Value*, BasicBlock*> pair_map;
+<<<<<<< HEAD
                 use_set.clear();
                 def_set.clear();
                 pair_map.clear();
@@ -35,6 +36,18 @@ void ActiveVar::execute() {
                         Value* rvalue = dynamic_cast<Value *>(inst);
                         def_set.insert(rvalue);
                         i = 0;
+=======
+                for (auto inst : bb->get_instructions()) {
+                    if (inst->get_instr_type() == Instruction::OpID::phi) {
+                        auto hss = static_cast<PhiInst *>(inst)->get_operands();
+                        Value *lvalue = static_cast<PhiInst *>(inst)->get_lval();
+                        if (def_set.find(lvalue) == def_set.end()) {
+                            use_set.insert(lvalue);
+                        }
+                        Value* rvalue = dynamic_cast<Value *>(inst);
+                        def_set.insert(rvalue);
+                        int i = 0;
+>>>>>>> 400d80ba97893d9a3aafe42bb08bc9c70fcf2572
                         for (;i < hss.size();i++) {
                             if (i % 2 == 0) {
                                 pair_map[hss[i]] = dynamic_cast<BasicBlock*>(hss[i+1]);
@@ -162,6 +175,7 @@ void ActiveVar::execute() {
                 def_map[bb] = def_set;
                 bb2pair_map[bb] = pair_map;
             }
+<<<<<<< HEAD
             std::map<BasicBlock*, std::set<Value*> > IN;
             std::map<BasicBlock*, std::set<Value*> > OUT;
             for(auto bb : func_->get_basic_blocks()){
@@ -210,6 +224,9 @@ void ActiveVar::execute() {
                     }
                 }
             }while(is_in_changed);
+=======
+
+>>>>>>> 400d80ba97893d9a3aafe42bb08bc9c70fcf2572
             /*you need to finish this function*/
         }
     }
