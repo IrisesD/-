@@ -13,7 +13,6 @@ void Mem2Reg::execute(){
         valueDefineCounting();
         valueForwarding(func_->get_entry_block());
         removeAlloc();
-        //phiStatistic();
     }
 }
 
@@ -26,14 +25,6 @@ void Mem2Reg::insideBlockForwarding(){
         for(auto inst: bb->get_instructions()){
             if(!isLocalVarOp(inst))continue;
             if(inst->get_instr_type() == Instruction::OpID::store){
-                /*
-                store指令对应：
-                lval:需要存入的数的值
-                rval:存的地址
-            z    store i32 1, i32* %2
-            x    %3 = load i32, i32* %2
-            y    store i32 %3, i32* %2
-                */
                 Value* lvalue = static_cast<StoreInst *>(inst)->get_lval();
                 Value* rvalue = static_cast<StoreInst *>(inst)->get_rval();
                 auto load_inst = dynamic_cast<Instruction*>(rvalue);
@@ -46,26 +37,21 @@ void Mem2Reg::insideBlockForwarding(){
                     pair->second = inst;
                 }
                 else{
-                    defined_list.insert({lvalue, inst});    //{i32* %2, z}
+                    defined_list.insert({lvalue, inst});
                 }
                 if(new_value.find(lvalue) != new_value.end()){
                     new_value.find(lvalue)->second = rvalue;
                 }
                 else{
-                    new_value.insert({lvalue, rvalue});         //{i32* %2, i32 1}
+                    new_value.insert({lvalue, rvalue});
                 }
             }
             else if(inst->get_instr_type() == Instruction::OpID::load){
-                /*
-                load指令对应：
-                lval:地址
-                rval:读入的变量名
-                */
                 Value* lvalue = static_cast<LoadInst *>(inst)->get_lval();
                 Value* rvalue = dynamic_cast<Value *>(inst);
                 if(defined_list.find(lvalue) == defined_list.end())continue;
                 Value* value = new_value.find(lvalue)->second;
-                forward_list.insert({inst, value});         //(%3, i32 1)
+                forward_list.insert({inst, value});
             }
         }
 
@@ -176,16 +162,6 @@ void Mem2Reg::valueForwarding(BasicBlock* bb){
     }
 
     for(auto inst: bb->get_instructions()){
-        /*
-        value forwarding
-        遇到load指令时，去找最近的操作该寄存器的值，然后替换load指令的左操作数
-
-        store i32 0, i32* %1
-        %2 = load i32, i32* %1
-        ——>
-        store i32 0, i32* %1
-        %2 = load i32, i32 0
-        */
         if(inst->get_instr_type() == Instruction::OpID::phi)continue;
         if(!isLocalVarOp(inst))continue;
         if(inst->get_instr_type() == Instruction::OpID::load){

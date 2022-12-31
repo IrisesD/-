@@ -14,6 +14,14 @@ public:
     explicit Check(Module *m): Pass(m) {}
     ~Check() {}
     void execute() final;
+    void CheckParent();
+    void CheckPhi();
+    void CheckBrPos();
+    void CheckRetPos();
+    void CheckIsBrOrRet();
+    void CheckDef();
+    void CheckDefUse();
+    void CheckSuccAndPreds();
     const std::string get_name() const override {return name;}
 };
 

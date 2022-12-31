@@ -8,7 +8,7 @@
 #include "DominateTree.h"
 #include "Mem2Reg.h"
 #include "ActiveVar.h"
-
+#include "Check.h"
 
 void print_help(const std::string& exe_name) {
   std::cout << "Usage: " << exe_name
@@ -88,13 +88,15 @@ int main(int argc, char *argv[])
             PassMgr passmgr(m.get());
             passmgr.addPass<DominateTree>();
             passmgr.addPass<Mem2Reg>();
+            passmgr.addPass<Check>();
             if(optimize_all){
                 passmgr.addPass<ActiveVar>();
-                //  ...
+                passmgr.addPass<Check>();
             }
             else {
                 if(av){
                     passmgr.addPass<ActiveVar>();
+                    passmgr.addPass<Check>();
                 }
                 //  ...
             }

@@ -15,55 +15,48 @@ void ActiveVar::execute() {
             func_ = func;
             std::map<BasicBlock*, std::set<Value*> > use_map;
             std::map<BasicBlock*, std::set<Value*> > def_map;
-            std::map<BasicBlock*, std::map<Value*, BasicBlock*> > bb2pair_map;
+            std::map<BasicBlock*, std::map<Value*, std::set<BasicBlock*> > > bb2pair_map;
             for (auto bb : func_->get_basic_blocks()) {
                 std::set<Value*> use_set;
                 std::set<Value*> def_set;
-                std::map<Value*, BasicBlock*> pair_map;
-<<<<<<< HEAD
+                std::map<Value*, std::set<BasicBlock*> > pair_map;
                 use_set.clear();
                 def_set.clear();
                 pair_map.clear();
                 for (auto inst : bb->get_instructions()) {
                     if (inst->get_instr_type() == Instruction::OpID::phi) {
                         auto hss = static_cast<PhiInst *>(inst)->get_operands();
+                        Value *lvalue = static_cast<PhiInst *>(inst)->get_lval();
                         int i = 0;
                         for (;i < hss.size();i++) {
-                            if (i % 2 == 0 && def_set.find(hss[i]) == def_set.end()) {
-                                use_set.insert(hss[i]);
+                            if (i % 2 == 0) {
+                                //if (def_set.find(hss[i]) == def_set.end()) {
+                                    if (!(dynamic_cast<Constant *>(hss[i])|| dynamic_cast<BasicBlock*>(hss[i]) || dynamic_cast<Function*>(hss[i]) || dynamic_cast<GlobalVariable*>(hss[i])))
+                                    use_set.insert(hss[i]);
+                                //}
                             }
                         }
                         Value* rvalue = dynamic_cast<Value *>(inst);
                         def_set.insert(rvalue);
                         i = 0;
-=======
-                for (auto inst : bb->get_instructions()) {
-                    if (inst->get_instr_type() == Instruction::OpID::phi) {
-                        auto hss = static_cast<PhiInst *>(inst)->get_operands();
-                        Value *lvalue = static_cast<PhiInst *>(inst)->get_lval();
-                        if (def_set.find(lvalue) == def_set.end()) {
-                            use_set.insert(lvalue);
-                        }
-                        Value* rvalue = dynamic_cast<Value *>(inst);
-                        def_set.insert(rvalue);
-                        int i = 0;
->>>>>>> 400d80ba97893d9a3aafe42bb08bc9c70fcf2572
                         for (;i < hss.size();i++) {
                             if (i % 2 == 0) {
-                                pair_map[hss[i]] = dynamic_cast<BasicBlock*>(hss[i+1]);
+                                pair_map[hss[i]].insert(dynamic_cast<BasicBlock*>(hss[i+1]));
                             }
                         }
                     } else if (inst->get_instr_type() == Instruction::OpID::store) {
-                        Value *lvalue = static_cast<StoreInst *>(inst)->get_lval();
+                        auto lvalue = inst->get_operand(0);
                         Value *rvalue = static_cast<StoreInst *>(inst)->get_rval();
-                        if (def_set.find(lvalue) == def_set.end()) {
+                        if (def_set.find(inst->get_operand(0)) == def_set.end()) {
+                            if (!(dynamic_cast<Constant *>(lvalue)|| dynamic_cast<BasicBlock*>(lvalue) || dynamic_cast<Function*>(lvalue) || dynamic_cast<GlobalVariable*>(lvalue)))
                             use_set.insert(lvalue);
                         }
                         def_set.insert(rvalue);
                     } else if (inst->get_instr_type() == Instruction::OpID::load) {
-                        Value *lvalue = static_cast<LoadInst *>(inst)->get_lval();
+                        auto lvalue = inst->get_operand(0);
                         Value* rvalue = dynamic_cast<Value *>(inst);
-                        if (def_set.find(lvalue) == def_set.end()) {
+                        if (def_set.find(inst->get_operand(0)) == def_set.end()) {
+                            if (!(dynamic_cast<Constant *>(lvalue)|| dynamic_cast<BasicBlock*>(lvalue) || dynamic_cast<Function*>(lvalue) || dynamic_cast<GlobalVariable*>(lvalue)))
                             use_set.insert(lvalue);
                         }
                         def_set.insert(rvalue);
@@ -72,6 +65,7 @@ void ActiveVar::execute() {
                         if (!ret_inst->is_void_ret()) {
                             Value* hs = ret_inst->get_operand(0);
                             if (def_set.find(hs) == def_set.end()) {
+                                if (!(dynamic_cast<Constant *>(hs)|| dynamic_cast<BasicBlock*>(hs) || dynamic_cast<Function*>(hs) || dynamic_cast<GlobalVariable*>(hs)))
                                 use_set.insert(hs);
                             }
                         }
@@ -80,6 +74,7 @@ void ActiveVar::execute() {
                         if (br_inst->is_cond_br()) {
                             Value* hs = br_inst->get_operand(0);
                             if (def_set.find(hs) == def_set.end()) {
+                                if (!(dynamic_cast<Constant *>(hs)|| dynamic_cast<BasicBlock*>(hs) || dynamic_cast<Function*>(hs) || dynamic_cast<GlobalVariable*>(hs)))
                                 use_set.insert(hs);
                             }
                         }
@@ -96,9 +91,11 @@ void ActiveVar::execute() {
                         Value* rhs = static_cast<BinaryInst *>(inst)->get_operand(1);
                         Value* res = dynamic_cast<Value *>(inst);
                         if (def_set.find(lhs) == def_set.end()) {
-                            use_set.insert(lhs);
+                            if (!(dynamic_cast<Constant *>(lhs)|| dynamic_cast<BasicBlock*>(lhs) || dynamic_cast<Function*>(lhs) || dynamic_cast<GlobalVariable*>(lhs)))
+                                use_set.insert(lhs);
                         }
                         if (def_set.find(rhs) == def_set.end()) {
+                            if (!(dynamic_cast<Constant *>(rhs)|| dynamic_cast<BasicBlock*>(rhs) || dynamic_cast<Function*>(rhs) || dynamic_cast<GlobalVariable*>(rhs)))
                             use_set.insert(rhs);
                         }
                         def_set.insert(res);
@@ -110,9 +107,11 @@ void ActiveVar::execute() {
                         Value* rhs = static_cast<CmpInst *>(inst)->get_operand(1);
                         Value* res = dynamic_cast<Value *>(inst);
                         if (def_set.find(lhs) == def_set.end()) {
+                            if (!(dynamic_cast<Constant *>(lhs)|| dynamic_cast<BasicBlock*>(lhs) || dynamic_cast<Function*>(lhs) || dynamic_cast<GlobalVariable*>(lhs)))
                             use_set.insert(lhs);
                         }
                         if (def_set.find(rhs) == def_set.end()) {
+                            if (!(dynamic_cast<Constant *>(rhs)|| dynamic_cast<BasicBlock*>(rhs) || dynamic_cast<Function*>(rhs) || dynamic_cast<GlobalVariable*>(rhs)))
                             use_set.insert(rhs);
                         }
                         def_set.insert(res);
@@ -121,9 +120,11 @@ void ActiveVar::execute() {
                         Value* rhs = static_cast<FCmpInst *>(inst)->get_operand(1);
                         Value* res = dynamic_cast<Value *>(inst);
                         if (def_set.find(lhs) == def_set.end()) {
+                            if (!(dynamic_cast<Constant *>(lhs)|| dynamic_cast<BasicBlock*>(lhs) || dynamic_cast<Function*>(lhs) || dynamic_cast<GlobalVariable*>(lhs)))
                             use_set.insert(lhs);
                         }
                         if (def_set.find(rhs) == def_set.end()) {
+                            if (!(dynamic_cast<Constant *>(rhs)|| dynamic_cast<BasicBlock*>(rhs) || dynamic_cast<Function*>(rhs) || dynamic_cast<GlobalVariable*>(rhs)))
                             use_set.insert(rhs);
                         }
                         def_set.insert(res);
@@ -131,6 +132,7 @@ void ActiveVar::execute() {
                         auto hss = static_cast<CallInst *>(inst)->get_operands();
                         for (int i = 1;i < hss.size();i++) {
                             if (def_set.find(hss[i]) == def_set.end()) {
+                                if (!(dynamic_cast<Constant *>(hss[i])|| dynamic_cast<BasicBlock*>(hss[i]) || dynamic_cast<Function*>(hss[i]) || dynamic_cast<GlobalVariable*>(hss[i])))
                                 use_set.insert(hss[i]);
                             }
                         }
@@ -143,6 +145,7 @@ void ActiveVar::execute() {
                         auto hss = static_cast<GetElementPtrInst *>(inst)->get_operands();
                         for (auto hs : hss) {
                             if (def_set.find(hs) == def_set.end()) {
+                                if (!(dynamic_cast<Constant *>(hs)|| dynamic_cast<BasicBlock*>(hs) || dynamic_cast<Function*>(hs) || dynamic_cast<GlobalVariable*>(hs)))
                                 use_set.insert(hs);
                             }
                         }
@@ -151,6 +154,7 @@ void ActiveVar::execute() {
                     } else if (inst->get_instr_type() == Instruction::OpID::zext) {
                         auto hs = static_cast<ZextInst *>(inst)->get_operand(0);
                         if (def_set.find(hs) == def_set.end()) {
+                            if (!(dynamic_cast<Constant *>(hs)|| dynamic_cast<BasicBlock*>(hs) || dynamic_cast<Function*>(hs) || dynamic_cast<GlobalVariable*>(hs)))
                             use_set.insert(hs);
                         }
                         auto res = dynamic_cast<Value *>(inst);
@@ -158,6 +162,7 @@ void ActiveVar::execute() {
                     } else if (inst->get_instr_type() == Instruction::OpID::fptosi) {
                         auto hs = static_cast<FpToSiInst *>(inst)->get_operand(0);
                         if (def_set.find(hs) == def_set.end()) {
+                            if (!(dynamic_cast<Constant *>(hs)|| dynamic_cast<BasicBlock*>(hs) || dynamic_cast<Function*>(hs) || dynamic_cast<GlobalVariable*>(hs)))
                             use_set.insert(hs);
                         }
                         auto res = dynamic_cast<Value *>(inst);
@@ -165,6 +170,7 @@ void ActiveVar::execute() {
                     } else if (inst->get_instr_type() == Instruction::OpID::sitofp) {
                         auto hs = static_cast<SiToFpInst *>(inst)->get_operand(0);
                         if (def_set.find(hs) == def_set.end()) {
+                            if (!(dynamic_cast<Constant *>(hs)|| dynamic_cast<BasicBlock*>(hs) || dynamic_cast<Function*>(hs) || dynamic_cast<GlobalVariable*>(hs)))
                             use_set.insert(hs);
                         }
                         auto res = dynamic_cast<Value *>(inst);
@@ -175,7 +181,7 @@ void ActiveVar::execute() {
                 def_map[bb] = def_set;
                 bb2pair_map[bb] = pair_map;
             }
-<<<<<<< HEAD
+
             std::map<BasicBlock*, std::set<Value*> > IN;
             std::map<BasicBlock*, std::set<Value*> > OUT;
             for(auto bb : func_->get_basic_blocks()){
@@ -190,16 +196,14 @@ void ActiveVar::execute() {
                 for(auto bb : func_->get_basic_blocks()){
                     OUT[bb].clear();
                     for(auto sucbb : bb->get_succ_basic_blocks()){
-                        
                         for(auto livein : sucbb->get_live_in()){
-                            
                             if(bb2pair_map[sucbb].find(livein) == bb2pair_map[sucbb].end()){
                                 OUT[bb].insert(livein);
                                 bb->set_live_out(OUT[bb]);
                             }
                             
                             else{
-                                if(bb2pair_map[sucbb][livein] == bb){
+                                if(bb2pair_map[sucbb][livein].find(bb) != bb2pair_map[sucbb][livein].end()){
                                     OUT[bb].insert(livein);
                                     bb->set_live_out(OUT[bb]);
                                 }
@@ -224,9 +228,6 @@ void ActiveVar::execute() {
                     }
                 }
             }while(is_in_changed);
-=======
-
->>>>>>> 400d80ba97893d9a3aafe42bb08bc9c70fcf2572
             /*you need to finish this function*/
         }
     }
@@ -236,6 +237,7 @@ void ActiveVar::execute() {
     //
     return ;
 }
+
 
 void ActiveVar::dump() {
     std::fstream f;
@@ -272,3 +274,4 @@ std::vector<Value*> sort_by_name(std::set<Value*> &val_set) {
     std::sort(result.begin(), result.end(), ValueCmp);
     return result;
 }
+
