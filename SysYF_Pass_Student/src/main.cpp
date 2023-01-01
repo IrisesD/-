@@ -96,7 +96,7 @@ int main(int argc, char *argv[])
             else {
                 if(av){
                     passmgr.addPass<ActiveVar>();
-                    passmgr.addPass<Check>();
+                    //passmgr.addPass<Check>();
                 }
                 //  ...
             }

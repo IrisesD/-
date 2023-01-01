@@ -15,7 +15,7 @@ void ActiveVar::execute() {
             func_ = func;
             std::map<BasicBlock*, std::set<Value*> > use_map;
             std::map<BasicBlock*, std::set<Value*> > def_map;
-            std::map<BasicBlock*, std::map<Value*, std::set<BasicBlock*> > > bb2pair_map;
+            std::map<BasicBlock*, std::set<Value*> > bb2Value;
             for (auto bb : func_->get_basic_blocks()) {
                 std::set<Value*> use_set;
                 std::set<Value*> def_set;
@@ -27,6 +27,7 @@ void ActiveVar::execute() {
                     if (inst->get_instr_type() == Instruction::OpID::phi) {
                         auto hss = static_cast<PhiInst *>(inst)->get_operands();
                         Value *lvalue = static_cast<PhiInst *>(inst)->get_lval();
+                        
                         int i = 0;
                         for (;i < hss.size();i++) {
                             if (i % 2 == 0) {
@@ -36,14 +37,9 @@ void ActiveVar::execute() {
                                 //}
                             }
                         }
+                        
                         Value* rvalue = dynamic_cast<Value *>(inst);
                         def_set.insert(rvalue);
-                        i = 0;
-                        for (;i < hss.size();i++) {
-                            if (i % 2 == 0) {
-                                pair_map[hss[i]].insert(dynamic_cast<BasicBlock*>(hss[i+1]));
-                            }
-                        }
                     } else if (inst->get_instr_type() == Instruction::OpID::store) {
                         auto lvalue = inst->get_operand(0);
                         Value *rvalue = static_cast<StoreInst *>(inst)->get_rval();
@@ -179,7 +175,7 @@ void ActiveVar::execute() {
                 }
                 use_map[bb] = use_set;
                 def_map[bb] = def_set;
-                bb2pair_map[bb] = pair_map;
+                //bb2Value[bb] = pair_map;
             }
 
             std::map<BasicBlock*, std::set<Value*> > IN;
@@ -196,20 +192,64 @@ void ActiveVar::execute() {
                 for(auto bb : func_->get_basic_blocks()){
                     OUT[bb].clear();
                     for(auto sucbb : bb->get_succ_basic_blocks()){
-                        for(auto livein : sucbb->get_live_in()){
-                            if(bb2pair_map[sucbb].find(livein) == bb2pair_map[sucbb].end()){
-                                OUT[bb].insert(livein);
-                                bb->set_live_out(OUT[bb]);
-                            }
-                            
-                            else{
-                                if(bb2pair_map[sucbb][livein].find(bb) != bb2pair_map[sucbb][livein].end()){
-                                    OUT[bb].insert(livein);
-                                    bb->set_live_out(OUT[bb]);
+                        for (auto inst : sucbb->get_instructions()){
+                            if (inst->is_phi()){
+                                for (auto i = 0; i < inst->get_num_operand(); i+=2){
+                                    if (inst->get_operand(i+1) != bb){
+                                        bb2Value[sucbb].insert(inst->get_operand(i));
+                                    }
                                 }
                             }
                         }
+                        std::set<Value *> triggered = {};
+                        for (auto item : bb2Value[sucbb]){
+                            auto out_succ = sucbb->get_live_out();
+                            auto def_succ = def_map[sucbb];
+                            std::set<Value *> out_def = {};
+                            for(auto &v : out_succ){
+                                if(def_succ.find(v) == def_succ.end()){
+                                    out_def.insert(v);
+                                    //Compute OUT-def
+                                }
+                            }
+                            if (out_def.find(item) != out_def.end()){
+                                //Has been propagated to next block, means been triggered
+                                triggered.insert(item);
+                                continue;
+                            }
+                            auto flag = false;
+                            for (auto use_place : item->get_use_list()){
+                                auto use_inst = dynamic_cast<Instruction *>(use_place.val_);
+                                auto use_arg_no = use_place.arg_no_;
+                                if (use_inst->get_parent() == sucbb){
+                                    if (use_inst->is_phi() && use_inst->get_operand(use_arg_no+1) == bb){
+                                        flag = true;
+                                        /*
+                                        if (!(dynamic_cast<Constant *>(item)|| dynamic_cast<BasicBlock*>(item) || dynamic_cast<Function*>(item) || dynamic_cast<GlobalVariable*>(item)))
+                                            use_map[sucbb].insert(item);
+                                            */
+                                        }
+                                    else if(!use_inst->is_phi()){
+                                        flag = true;
+                                    }
+                                    //break;
+                                }
+                            }
+                            if (flag == true){
+                                triggered.insert(item);
+                            }
+                        }
+                        for (auto item : triggered){
+                            if(bb2Value[sucbb].find(item) != bb2Value[sucbb].end())
+                                bb2Value[sucbb].erase(item);
+                        }
+                        for(auto livein : sucbb->get_live_in()){
+                            if(bb2Value[sucbb].find(livein) == bb2Value[sucbb].end()){
+                                OUT[bb].insert(livein);
+                            }
+                        }
                     }
+                    bb->set_live_out(OUT[bb]);
                     for(auto use : use_map[bb]){
                         if(IN[bb].find(use) == IN[bb].end()){
                             is_in_changed = true;

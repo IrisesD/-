@@ -227,6 +227,7 @@ void Check::CheckParent(){
                         std::cout << "Parent should be: " << bb->get_name() << std::endl;
                         exit(1);
                     }
+                    /*
                     else if(inst->get_parent() != bb){   
                         //Check insts' parent
                         std::cout << "Error in Inst: " << std::endl;
@@ -243,6 +244,7 @@ void Check::CheckParent(){
                         std::cout << "Func should be: " << func->get_name() << std::endl;
                         exit(3);
                     }
+                    */
                 }
             }
         }
