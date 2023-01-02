@@ -45,7 +45,7 @@ add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/src/Log)
 add_executable(
         compiler
         ${CMAKE_CURRENT_SOURCE_DIR}/src/main.cpp
-)
+        include/Optimize/ConstPropagation.h src/Optimize/ConstPropagation.cpp "include/Optimize/DeadCodeEli.h" "src/Optimize/DeadCodeEli.cpp")
 
 target_link_libraries(
         compiler

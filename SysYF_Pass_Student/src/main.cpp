@@ -9,6 +9,8 @@
 #include "Mem2Reg.h"
 #include "ActiveVar.h"
 #include "Check.h"
+#include "ConstPropagation.h"
+#include "DeadCodeEli.h"
 
 void print_help(const std::string& exe_name) {
   std::cout << "Usage: " << exe_name
@@ -90,6 +92,8 @@ int main(int argc, char *argv[])
             passmgr.addPass<Mem2Reg>();
             passmgr.addPass<Check>();
             if(optimize_all){
+                passmgr.addPass<ConstPropagation>();
+                passmgr.addPass<DeadCodeEli>();
                 passmgr.addPass<ActiveVar>();
                 passmgr.addPass<Check>();
             }

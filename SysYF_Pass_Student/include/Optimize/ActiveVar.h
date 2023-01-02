@@ -10,6 +10,7 @@ public:
     ActiveVar(Module *module) : Pass(module) {}
     void execute() final;
     const std::string get_name() const override {return name;}
+
     void dump();
 private:
     Function *func_;
