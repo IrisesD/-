@@ -49,22 +49,22 @@ void DeadCodeEli::mark() {
         }
         if (inst->is_phi())
         {
-            std::vector<std::pair<Value*, BasicBlock*> >pair;
-            auto hss = static_cast<PhiInst *>(inst)->get_operands();
-            for (int i = 0; i < hss.size(); i++) {
-                if (i % 2 == 0) {
-                    pair.push_back({hss[i], (BasicBlock*)hss[i+1]});
-                }
-            }
-            for(int i = 0; i < pair.size(); i++){
-                auto value = pair[i].first;
-                auto label = pair[i].second;
-                if (dynamic_cast<Constant *>(value) || dynamic_cast<Instruction *>(value) || dynamic_cast<Argument *>(value)){
-                    for (auto bb : label->get_rdom_frontier()){
-                        auto term_inst = bb->get_terminator();
-                        if (term_inst->is_br()){
-                            mark_insts.insert(term_inst);
-                            worklist.insert(term_inst);
+            for (size_t opi = 0; opi < inst->get_operands().size() / 2; opi++)
+            {
+                auto val = inst->get_operands()[2 * opi];
+                auto label = inst->get_operands()[2 * opi + 1];
+                if (dynamic_cast<Constant *>(val) || dynamic_cast<Instruction *>(val) || dynamic_cast<Argument *>(val))
+                {
+                    for (auto bb : ((BasicBlock *)label)->get_rdom_frontier())
+                    {
+                        for (auto j : bb->get_instructions())
+                        {
+                            if (j->is_br())
+                            {
+                                mark_insts.insert(j);
+                                worklist.insert(j);
+                                break;
+                            }
                         }
                     }
                 }
@@ -72,11 +72,13 @@ void DeadCodeEli::mark() {
         }
         auto rdf = inst->get_parent()->get_rdom_frontier();
         for (auto bb : rdf) {
-            auto term_inst = bb->get_terminator();
-            if (term_inst->is_br()){
-                mark_insts.insert(term_inst);
-                worklist.insert(term_inst);
-            }
+            for(auto br_inst : bb->get_instructions())
+                if (br_inst->is_br()) {
+                    if (mark_insts.find(br_inst) == mark_insts.end()) {
+                        mark_insts.insert(br_inst);
+                        worklist.insert(br_inst);
+                    }
+                }
         }
     }
 }
@@ -92,11 +94,10 @@ void DeadCodeEli::sweep() {
                 for (auto inst: bb_insts) {
                     if (mark_insts.find(inst) == mark_insts.end()) {
                         if (inst->is_br() && dynamic_cast<BranchInst*>(inst)->is_cond_br()) {
-                            //bfs to find nearest postdom
                             std::queue<BasicBlock*> bb_queue;
-                            std::map<BasicBlock *, std::set<Value *> > direct_preds_bb;
-                            BasicBlock* nearest_bb;
-                            std::map<BasicBlock*, bool> visited;
+                            std::map<BasicBlock *, std::set<Value *> > lastoftoBB;
+                            BasicBlock* n_bb;
+                            std::map<BasicBlock*, bool> vs;
                             bool flag = false;
                             for (auto s_bb : inst->get_parent()->get_succ_basic_blocks()) {
                                 bb_queue.push(s_bb);
@@ -104,28 +105,32 @@ void DeadCodeEli::sweep() {
                             while (!bb_queue.empty()) {
                                 auto f = bb_queue.front();
                                 bb_queue.pop();
-                                if(!visited[f]){
-                                    visited[f] = true;
+                                if(!vs[f]){
+                                    vs[f] = true;
                                     if (bb->get_rdoms().find(f) != bb->get_rdoms().end()) {
                                         if (!flag) {
-                                            nearest_bb = f;
+                                            n_bb = f;
+                                            if(bb->get_name() == "label8")
+                                            std::cout << "nbb: " << n_bb->get_name()  << std::endl;
                                             flag = true;
                                         }
                                     }
                                     for (auto s_bb : f->get_succ_basic_blocks()) {
-                                        direct_preds_bb[s_bb].insert(f);
+                                        lastoftoBB[s_bb].insert(f);
+                                        if(s_bb->get_name() == "label19")
+                                            std::cout << "ltb: " << f->get_name()  << std::endl;
                                         bb_queue.push(s_bb);
                                     }
                                 }
                             }
-                            auto bb_suc_list = bb->get_succ_basic_blocks();
-                            for (auto s_bb : bb_suc_list) {
+                            auto bb_v = bb->get_succ_basic_blocks();
+                            for (auto s_bb : bb_v) {
                                 s_bb->remove_pre_basic_block(bb);
                                 bb->remove_succ_basic_block(s_bb);
                             }
-                            bb->add_succ_basic_block(nearest_bb);
-                            BranchInst::create_br(nearest_bb, bb);
-                            //Recompute the RdomTree
+                            bb->add_succ_basic_block(n_bb);
+                            //n_bb->add_pre_basic_block(bb);
+                            BranchInst::create_br(n_bb, bb);
                             auto r_tree = new RDominateTree(module);
                             r_tree->execute();
                                          for (auto inst : n_bb->get_instructions()){
@@ -144,31 +149,11 @@ void DeadCodeEli::sweep() {
                                                         inst->set_operand(2*i+1, bb);
                                                 }
                                             }
+                                            
                                          }
-                            
                             bb->delete_instr(inst);
 
                         } else if(!inst->is_br()) {
-                            for (auto inst : nearest_bb->get_instructions()){
-                                //Change Phi Insts
-                                if (inst->is_phi()){
-                                    std::vector<std::pair<Value*, BasicBlock*> >pair;
-                                    auto hss = static_cast<PhiInst *>(inst)->get_operands();
-                                    for (int i = 0; i < hss.size(); i++) {
-                                        if (i % 2 == 0) {
-                                            pair.push_back({hss[i], (BasicBlock*)hss[i+1]});
-                                        }
-                                    }
-                                    for(int i = 0; i < pair.size(); i++){
-                                        auto label = pair[i].second;
-                                        if(direct_preds_bb[nearest_bb].find(label) != direct_preds_bb[nearest_bb].end())
-                                            inst->set_operand(2*i+1, bb);
-                                    }
-                                }
-                            }
-                            bb->delete_instr(inst);
-                        } 
-                        else if(!inst->is_br()) {
                             bb->delete_instr(inst);
                         }
                     }
@@ -176,3 +161,4 @@ void DeadCodeEli::sweep() {
             }
         }
     }
+}
