@@ -94,6 +94,7 @@ int main(int argc, char *argv[])
             if(optimize_all){
                 passmgr.addPass<ConstPropagation>();
                 passmgr.addPass<DeadCodeEli>();
+                passmgr.addPass<Check>();
                 passmgr.addPass<ActiveVar>();
                 passmgr.addPass<Check>();
             }

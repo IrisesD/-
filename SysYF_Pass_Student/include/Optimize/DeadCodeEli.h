@@ -4,6 +4,7 @@
 #include "Pass.h"
 #include "Module.h"
 #include <queue>
+#include <utility>
 
 class DeadCodeEli : public Pass
 {
