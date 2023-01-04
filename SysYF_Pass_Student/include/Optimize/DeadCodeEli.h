@@ -15,6 +15,9 @@ public:
     bool is_critical(Instruction* inst);
     void mark();
     void sweep();
+    void delete_bb();
+    void Clean();
+    bool Onepass();
 private:
     Function *func_;
     std::set<Instruction*> mark_insts;
