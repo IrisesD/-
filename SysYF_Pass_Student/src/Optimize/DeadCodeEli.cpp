@@ -175,18 +175,15 @@ void DeadCodeEli::delete_bb() {
         while (!worklist.empty()) {
             auto front_bb = worklist.front();
             worklist.pop();
-            if (!marked[front_bb])
-            {
+            if (!marked[front_bb]){
                 marked[front_bb] = true;
                 for (auto next: front_bb->get_succ_basic_blocks())
                     worklist.push(next);
             }
         }
         auto BB = func->get_basic_blocks();
-        for (auto bb : BB)
-        {
-            if (!marked[bb])
-            {
+        for (auto bb : BB){
+            if (!marked[bb]){
                 for (auto succ : bb->get_succ_basic_blocks())
                     succ->remove_pre_basic_block(bb);
                 func->get_basic_blocks().remove(bb);
@@ -205,98 +202,81 @@ bool DeadCodeEli::Onepass() {
         if (func->get_basic_blocks().empty())
             continue;
         for (auto bb : func->get_basic_blocks()) {
-            auto t_inst = bb->get_terminator();
-            if (t_inst->is_br()) {
-                auto tt_inst = static_cast<BranchInst*>(t_inst);
-                if (tt_inst->is_cond_br()) {
-                    auto bb1 = dynamic_cast<BasicBlock*>(tt_inst->get_operand(1));
-                    auto bb2 = dynamic_cast<BasicBlock*>(tt_inst->get_operand(2));
-                    // TODO
-                    if (bb1 == bb2) {
-                        BranchInst::create_br(bb1, bb);
-                        bb->delete_instr(tt_inst);
-                        is_change = true;
+            if(bb->get_name() == "label_entry" || bb->get_name() == "label_ret" || bb->get_instructions().size() > 1)
+                continue;
+            if(bb->get_pre_basic_blocks().size() == 1 ){
+                auto pre_bb = bb->get_pre_basic_blocks().front();
+                auto suc_bb = bb->get_succ_basic_blocks().front();
+                if(bb->get_succ_basic_blocks().size() == 1 && bb->get_succ_basic_blocks().front()->get_pre_basic_blocks().size() == 1){
+                
+                    pre_bb->remove_succ_basic_block(bb);
+                    bb->remove_pre_basic_block(pre_bb);
+
+                    suc_bb->remove_pre_basic_block(bb);
+                    bb->remove_succ_basic_block(suc_bb);
+
+                    pre_bb->add_succ_basic_block(suc_bb);
+                    suc_bb->add_pre_basic_block(pre_bb);
+                    
+                    auto tt_pre_bb_inst = pre_bb->get_terminator();
+                    if (dynamic_cast<BranchInst *>(tt_pre_bb_inst)->is_cond_br()){
+                        if (tt_pre_bb_inst->get_operand(1) == bb)
+                            tt_pre_bb_inst->set_operand(1, suc_bb);
+                        else
+                            tt_pre_bb_inst->set_operand(2, suc_bb);
                     }
-                } else if (!tt_inst->is_cond_br()) {
-                    if (bb->get_instructions().size() == 1) {
-                        auto bb_succ = dynamic_cast<BasicBlock *>(tt_inst->get_operand(0));
-                        auto bb_pre_bb = bb->get_pre_basic_blocks();
-                        for (auto pre_bb: bb_pre_bb) {
-                            std::cout << pre_bb->get_name() << std::endl;
-                            std::cout << bb->get_name() << std::endl;
-                            Instruction* tt_pre_bb_inst;
-                            for (auto inst : pre_bb->get_instructions()) {
-                                if (inst->is_br()) {
-                                    tt_pre_bb_inst = inst;
-                                    break;
-                                }
-                            }
-                            if (tt_pre_bb_inst->is_br()) {
-                                auto tt_pre_bb_inst_2 = dynamic_cast<BranchInst *>(tt_pre_bb_inst);
-                                if (tt_pre_bb_inst_2->is_cond_br()) {
-                                    auto ops1 = dynamic_cast<BasicBlock *>(tt_pre_bb_inst_2->get_operand(1));
-                                    auto ops2 = dynamic_cast<BasicBlock *>(tt_pre_bb_inst_2->get_operand(2));
-                                    if (ops1 == bb) {
-                                        pre_bb->remove_succ_basic_block(bb);
-                                        bb->remove_pre_basic_block(pre_bb);
-                                        pre_bb->add_succ_basic_block(bb_succ);
-                                        bb_succ->remove_pre_basic_block(bb);
-                                        bb_succ->add_pre_basic_block(pre_bb);
-                                        bb->remove_succ_basic_block(bb_succ);
-                                        tt_pre_bb_inst_2->set_operand(1, bb_succ);
-                                        is_change = true;
-                                    } else if (ops2 == bb) {
-                                        pre_bb->remove_succ_basic_block(bb);
-                                        bb->remove_pre_basic_block(pre_bb);
-                                        pre_bb->add_succ_basic_block(bb_succ);
-                                        bb_succ->remove_pre_basic_block(bb);
-                                        bb_succ->add_pre_basic_block(pre_bb);
-                                        bb->remove_succ_basic_block(bb_succ);
-                                        tt_pre_bb_inst_2->set_operand(2, bb_succ);
-                                        is_change = true;
-                                    }
-                                } else {
-                                    pre_bb->remove_succ_basic_block(bb);
-                                    bb->remove_pre_basic_block(pre_bb);
-                                    pre_bb->add_succ_basic_block(bb_succ);
-                                    bb_succ->remove_pre_basic_block(bb);
-                                    bb_succ->add_pre_basic_block(pre_bb);
-                                    bb->remove_succ_basic_block(bb_succ);
-                                    tt_pre_bb_inst_2->set_operand(0, bb_succ);
-                                    is_change = true;
-                                }
-                            }
-                        }
-                        for (auto inst : bb_succ->get_instructions()) {
-                            if (inst->is_phi() && bb->get_name() != "label_entry") {
-                                auto phi_inst = static_cast<PhiInst*>(inst);
-                                auto hss = phi_inst->get_operands();
-                                std::vector<int> is;
-                                std::map<Value*, std::vector<BasicBlock*> > bb_map;
-                                for (int i = 0;i < hss.size();i++) {
-                                    if (i % 2 == 0) {
-                                        if ((BasicBlock*)(hss[i+1]) == bb) {
-                                            is.push_back(i);
-                                            bb_map[hss[i]] = {};
-                                            for (auto pre_bb : bb->get_pre_basic_blocks()) {
-                                                bb_map[hss[i]].push_back(pre_bb);
-                                            }
-                                        }
-                                    }
-                                }
-                                for (auto i : is) {
-                                    std::cout << " " << i << std::endl;
-                                    phi_inst->remove_operands(i, i+1);
-                                }
-                                for (auto i : is) {
-                                    for (auto v : bb_map[hss[i]]) {
-                                        phi_inst->add_operand(hss[i]);
-                                        phi_inst->add_operand(v);
+                    else{
+                        tt_pre_bb_inst->set_operand(0, suc_bb);
+                    }
+                    
+                    for (auto instr : suc_bb->get_instructions()){
+                        if (instr->is_phi()){
+                            for (int i = 0; i < instr->get_num_operand(); i++){
+                                if(i % 2 == 0){
+                                    if (instr->get_operand(i + 1) == bb){
+                                        auto val = instr->get_operand(i);
+                                        instr->remove_operands(i, i + 1);
+                                        instr->add_operand(val);
+                                        instr->add_operand(pre_bb);
+                                        break;
                                     }
                                 }
                             }
                         }
                     }
+                    is_change = true;
+                }
+                else if(bb->get_succ_basic_blocks().size() > 1 && !dynamic_cast<BranchInst*>(pre_bb->get_terminator())->is_cond_br()){
+                    auto t_pre_bb_inst = pre_bb->get_terminator();
+                    pre_bb->delete_instr(t_pre_bb_inst);
+                    pre_bb->add_instruction(bb->get_terminator());
+
+                    pre_bb->remove_succ_basic_block(bb);
+                    bb->remove_pre_basic_block(pre_bb);
+                    
+                    for (auto suc_bb : bb->get_succ_basic_blocks())
+                    {
+                        suc_bb->remove_pre_basic_block(bb);
+                        bb->remove_succ_basic_block(suc_bb);
+                        pre_bb->add_succ_basic_block(suc_bb);
+                        suc_bb->add_pre_basic_block(pre_bb);
+                    }
+                    for (auto instr : suc_bb->get_instructions()){
+                        if (instr->is_phi()){
+                            for (int i = 0; i < instr->get_num_operand(); i++){
+                                if(i % 2 == 0){
+                                    if (instr->get_operand(i + 1) == bb){
+                                        auto val = instr->get_operand(i);
+                                        instr->remove_operands(i, i + 1);
+                                        instr->add_operand(val);
+                                        instr->add_operand(pre_bb);
+                                        break;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                    is_change = true;
                 }
             }
         }
