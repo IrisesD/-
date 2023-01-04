@@ -220,8 +220,17 @@ bool DeadCodeEli::Onepass() {
                 } else if (!tt_inst->is_cond_br()) {
                     if (bb->get_instructions().size() == 1) {
                         auto bb_succ = dynamic_cast<BasicBlock *>(tt_inst->get_operand(0));
-                        for (auto pre_bb: bb->get_pre_basic_blocks()) {
-                            auto tt_pre_bb_inst = pre_bb->get_terminator();
+                        auto bb_pre_bb = bb->get_pre_basic_blocks();
+                        for (auto pre_bb: bb_pre_bb) {
+                            std::cout << pre_bb->get_name() << std::endl;
+                            std::cout << bb->get_name() << std::endl;
+                            Instruction* tt_pre_bb_inst;
+                            for (auto inst : pre_bb->get_instructions()) {
+                                if (inst->is_br()) {
+                                    tt_pre_bb_inst = inst;
+                                    break;
+                                }
+                            }
                             if (tt_pre_bb_inst->is_br()) {
                                 auto tt_pre_bb_inst_2 = dynamic_cast<BranchInst *>(tt_pre_bb_inst);
                                 if (tt_pre_bb_inst_2->is_cond_br()) {
@@ -259,14 +268,14 @@ bool DeadCodeEli::Onepass() {
                             }
                         }
                         for (auto inst : bb_succ->get_instructions()) {
-                            if (inst->is_phi() && !bb->get_pre_basic_blocks().empty()) {
-                                auto phi_inst = dynamic_cast<PhiInst*>(inst);
+                            if (inst->is_phi() && bb->get_name() != "label_entry") {
+                                auto phi_inst = static_cast<PhiInst*>(inst);
                                 auto hss = phi_inst->get_operands();
                                 std::vector<int> is;
                                 std::map<Value*, std::vector<BasicBlock*> > bb_map;
                                 for (int i = 0;i < hss.size();i++) {
                                     if (i % 2 == 0) {
-                                        if (dynamic_cast<BasicBlock*>(hss[i+1]) == bb) {
+                                        if ((BasicBlock*)(hss[i+1]) == bb) {
                                             is.push_back(i);
                                             bb_map[hss[i]] = {};
                                             for (auto pre_bb : bb->get_pre_basic_blocks()) {
@@ -276,6 +285,7 @@ bool DeadCodeEli::Onepass() {
                                     }
                                 }
                                 for (auto i : is) {
+                                    std::cout << " " << i << std::endl;
                                     phi_inst->remove_operands(i, i+1);
                                 }
                                 for (auto i : is) {
