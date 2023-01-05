@@ -11,3 +11,5 @@ cmake ../
 make
 
 ## 2. execute and collect result
+cd ../test/student/
+python3 test.py

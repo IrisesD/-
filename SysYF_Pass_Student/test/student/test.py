@@ -4,7 +4,7 @@ import os
 
 IRBuild_ptn = '"{}" "-emit-ir" "-o" "{}" "{}" "-O2"'
 IRBuild_ptn1 = '"{}" "-emit-ir" "-o" "{}" "{}" "-O"'
-ExeGen_ptn = '"clang" "{}" "-o" "{}" "{}" "../lib/lib.c"'
+ExeGen_ptn = '"clang" "{}" "-o" "{}" "{}" "../../lib/lib.c"'
 Exe_ptn = '"{}"'
 
 def cnt(path1, path2):
@@ -106,12 +106,12 @@ if __name__ == "__main__":
 
     # you can only modify this to add your testcase
     TEST_DIRS = [
-                './Test_H/Easy_H/',
-                './Test_H/Medium_H/',
-                './Test_H//Hard_H/',
-                './Test/Easy/',
-                './Test/Medium/',
-                './Test/Hard/'
+                '../Test_H/Easy_H/',
+                '../Test_H/Medium_H/',
+                '../Test_H//Hard_H/',
+                '../Test/Easy/',
+                '../Test/Medium/',
+                '../Test/Hard/'
                 ]
     # you can only modify this to add your testcase
 
@@ -119,7 +119,7 @@ if __name__ == "__main__":
     fail_dirs = set()
     for TEST_BASE_PATH in TEST_DIRS:
         testcases = {}  # { name: need_input }
-        EXE_PATH = os.path.abspath('../build/compiler')
+        EXE_PATH = os.path.abspath('../../build/compiler')
         if not os.path.isfile(EXE_PATH):
             print("compiler does not exist")
             exit(1)
