@@ -18,6 +18,9 @@ public:
     void delete_bb();
     void Clean();
     bool Onepass();
+    void ModifyPhi(BasicBlock* suc_bb, BasicBlock* bb, BasicBlock* pre_bb);
+    bool Case3(BasicBlock* bb);
+    bool Case4(BasicBlock* bb, BasicBlock* pre_bb);
 private:
     Function *func_;
     std::set<Instruction*> mark_insts;

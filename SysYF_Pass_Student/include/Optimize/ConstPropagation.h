@@ -19,10 +19,12 @@ class ConstFolder
 {
 public:
     ConstFolder(Module *module) : module_(module) {}
-    ConstantFloat *compute_f(Instruction::OpID op, ConstantFloat *value1, ConstantFloat *value2);
-
+   
     ConstantInt *compute(Instruction::OpID op, ConstantInt *value1, ConstantInt *value2);
-    // ...
+    ConstantFloat *compute_f(Instruction::OpID op, ConstantFloat *value1, ConstantFloat *value2);
+    ConstantInt *GetCmpValue(CmpInst::CmpOp op, int const_value1,int const_value2);
+    ConstantFloat *GetFCmpValue(FCmpInst::CmpOp op, float const_value1, float const_value2);
+    
 private:
     Module *module_;
 };
