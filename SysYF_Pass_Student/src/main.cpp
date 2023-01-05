@@ -35,6 +35,8 @@ int main(int argc, char *argv[])
     bool optimize = false;
 
     bool av = false;
+    bool cp = false;
+    bool de = false;
 
     std::string filename = "-";
     std::string output_llvm_file = "-";
@@ -71,6 +73,12 @@ int main(int argc, char *argv[])
         else if(argv[i] == std::string("-av")){
             av = true;
         }
+        else if(argv[i] == std::string("-cp")){
+            cp = true;
+        }
+        else if(argv[i] == std::string("-de")){
+            de = true;
+        }
         //  ...
         else {
             filename = argv[i];
@@ -93,6 +101,7 @@ int main(int argc, char *argv[])
             passmgr.addPass<Check>();
             if(optimize_all){
                 passmgr.addPass<ConstPropagation>();
+                passmgr.addPass<Check>();
                 passmgr.addPass<DeadCodeEli>();
                 passmgr.addPass<Check>();
                 passmgr.addPass<ActiveVar>();
@@ -101,7 +110,15 @@ int main(int argc, char *argv[])
             else {
                 if(av){
                     passmgr.addPass<ActiveVar>();
-                    //passmgr.addPass<Check>();
+                    passmgr.addPass<Check>();
+                }
+                if(cp){
+                    passmgr.addPass<ConstPropagation>();
+                    passmgr.addPass<Check>();
+                }
+                if(de){
+                    passmgr.addPass<DeadCodeEli>();
+                    passmgr.addPass<Check>();
                 }
                 //  ...
             }

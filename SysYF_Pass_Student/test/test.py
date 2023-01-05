@@ -3,30 +3,8 @@ import subprocess
 import os
 
 IRBuild_ptn = '"{}" "-emit-ir" "-o" "{}" "{}" "-O2"'
-IRBuild_ptn1 = '"{}" "-emit-ir" "-o" "{}" "{}" "-O"'
 ExeGen_ptn = '"clang" "{}" "-o" "{}" "{}" "../lib/lib.c"'
 Exe_ptn = '"{}"'
-
-def cnt(path1, path2):
-    line1 = 0
-    op1 = 0
-    line2 = 0
-    op2 = 0
-    with open(path1, "r") as f:
-        for line in f:
-            if line.find("declare") == -1 and line != '\n':
-                line_s = line.strip()
-                if line_s[0:4].find("op") != -1:
-                    op1 += 1
-                line1 += 1
-    with open(path2, "r") as f:
-        for line in f:
-            if line.find("declare") == -1 and line != '\n':
-                line_s = line.strip()
-                if line_s[0:4].find("op") != -1:
-                    op2 += 1
-                line2 += 1
-    return (line1, line2, op1, op2)
 
 def eval(EXE_PATH, TEST_BASE_PATH, optimization):
     print('===========TEST START===========')
@@ -75,10 +53,7 @@ def eval(EXE_PATH, TEST_BASE_PATH, optimization):
                             case_succ = False
                         i = i + 1
                     if case_succ:
-                        IRBuild_result = subprocess.run(IRBuild_ptn1.format(EXE_PATH, "temp.ll", SY_PATH), shell=True, stderr=subprocess.PIPE)
-                        res = cnt(LL_PATH, "./temp.ll")
-                        print('\t\033[32mPass\033[0m' + " Code Line Reduction: ", res[1]-res[0], " Var Space Reduction: ", res[3]-res[2])
-
+                        print('\t\033[32mPass\033[0m')
                     else:
                         print('\t\033[31mWrong Answer\033[0m')
             except Exception as _:
@@ -115,7 +90,7 @@ if __name__ == "__main__":
                 ]
     # you can only modify this to add your testcase
 
-    optimization = "-O2"     # -O0 -O1 -O2 -O3 -O4 -Ofast
+    optimization = "-O0"     # -O0 -O1 -O2 -O3 -O4 -Ofast
     fail_dirs = set()
     for TEST_BASE_PATH in TEST_DIRS:
         testcases = {}  # { name: need_input }
@@ -144,5 +119,4 @@ if __name__ == "__main__":
             fail_dir_str += (Dir + "\t")
         print("\t\033[31mTest Fail\033[0m in dirs {}".format(fail_dir_str))
     else:
-        print("\t\033[32mAll Tests Passed\033[0m")
-        
+        print("\t\033[32mAll Tests Passed\033[0m")   
