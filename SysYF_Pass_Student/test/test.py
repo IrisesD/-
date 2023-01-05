@@ -3,8 +3,30 @@ import subprocess
 import os
 
 IRBuild_ptn = '"{}" "-emit-ir" "-o" "{}" "{}" "-O2"'
+IRBuild_ptn1 = '"{}" "-emit-ir" "-o" "{}" "{}" "-O"'
 ExeGen_ptn = '"clang" "{}" "-o" "{}" "{}" "../lib/lib.c"'
 Exe_ptn = '"{}"'
+
+def cnt(path1, path2):
+    line1 = 0
+    op1 = 0
+    line2 = 0
+    op2 = 0
+    with open(path1, "r") as f:
+        for line in f:
+            if line.find("declare") == -1 and line != '\n':
+                line_s = line.strip()
+                if line_s[0:4].find("op") != -1:
+                    op1 += 1
+                line1 += 1
+    with open(path2, "r") as f:
+        for line in f:
+            if line.find("declare") == -1 and line != '\n':
+                line_s = line.strip()
+                if line_s[0:4].find("op") != -1:
+                    op2 += 1
+                line2 += 1
+    return (line1, line2, op1, op2)
 
 def eval(EXE_PATH, TEST_BASE_PATH, optimization):
     print('===========TEST START===========')
@@ -53,7 +75,10 @@ def eval(EXE_PATH, TEST_BASE_PATH, optimization):
                             case_succ = False
                         i = i + 1
                     if case_succ:
-                        print('\t\033[32mPass\033[0m')
+                        IRBuild_result = subprocess.run(IRBuild_ptn1.format(EXE_PATH, "1.ll", SY_PATH), shell=True, stderr=subprocess.PIPE)
+                        res = cnt(LL_PATH, "./1.ll")
+                        print('\t\033[32mPass\033[0m' + " ", res[1]-res[0], " ", res[3]-res[2])
+
                     else:
                         print('\t\033[31mWrong Answer\033[0m')
             except Exception as _:
@@ -90,7 +115,7 @@ if __name__ == "__main__":
                 ]
     # you can only modify this to add your testcase
 
-    optimization = "-O0"     # -O0 -O1 -O2 -O3 -O4 -Ofast
+    optimization = "-O2"     # -O0 -O1 -O2 -O3 -O4 -Ofast
     fail_dirs = set()
     for TEST_BASE_PATH in TEST_DIRS:
         testcases = {}  # { name: need_input }
