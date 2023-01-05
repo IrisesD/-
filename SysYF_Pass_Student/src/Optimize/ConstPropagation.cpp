@@ -39,6 +39,55 @@ ConstantFloat *ConstFolder::compute_f(Instruction::OpID op, ConstantFloat *value
     }
 }
 
+ConstantInt *ConstFolder::GetCmpValue(CmpInst::CmpOp op, int const_value1, int const_value2){
+    ConstantInt* res;
+    switch (op) {
+        case CmpInst::EQ:
+            res = ConstantInt::get((const_value1 == const_value2), module_);
+            break;
+        case CmpInst::LE:
+            res = ConstantInt::get((const_value1 <= const_value2), module_);
+            break;
+        case CmpInst::LT:
+            res = ConstantInt::get((const_value1 < const_value2), module_);
+            break;
+        case CmpInst::GE:
+            res = ConstantInt::get((const_value1 >= const_value2), module_);
+            break;
+        case CmpInst::GT:
+            res = ConstantInt::get((const_value1 > const_value2), module_);
+            break;
+        case CmpInst::NE:
+            res = ConstantInt::get((const_value1 != const_value2), module_);
+            break;
+    }
+    return res;
+}
+
+ConstantFloat *ConstFolder::GetFCmpValue(FCmpInst::CmpOp op, float const_value1, float const_value2){
+    ConstantFloat* res;
+    switch (op) {
+        case FCmpInst::EQ:
+            res = ConstantFloat::get((const_value1 == const_value2), module_);
+            break;
+        case FCmpInst::LE:
+            res = ConstantFloat::get((const_value1 <= const_value2), module_);
+            break;
+        case FCmpInst::LT:
+            res = ConstantFloat::get((const_value1 < const_value2), module_);
+            break;
+        case FCmpInst::GE:
+            res = ConstantFloat::get((const_value1 >= const_value2), module_);
+            break;
+        case FCmpInst::GT:
+            res = ConstantFloat::get((const_value1 > const_value2), module_);
+            break;
+        case FCmpInst::NE:
+            res = ConstantFloat::get((const_value1 != const_value2), module_);
+            break;
+    }
+    return res;
+}
 
 // 用来判断value是否为ConstantInt，如果不是则会返回nullptr
 ConstantInt *cast_to_const_int(Value *value) {
@@ -70,11 +119,7 @@ void ConstPropagation::execute() {
         } else {
             for (auto bb: func->get_basic_blocks()) {
                 for (auto inst: bb->get_instructions()) {
-                    if (inst->get_instr_type() == Instruction::add
-                        || inst->get_instr_type() == Instruction::sub
-                        || inst->get_instr_type() == Instruction::mul
-                        || inst->get_instr_type() == Instruction::sdiv
-                        || inst->get_instr_type() == Instruction::srem) {
+                    if (inst->is_int_binary()) {
                         if (cast_to_const_int(inst->get_operand(0)) && cast_to_const_int(inst->get_operand(1))) {
                             auto const_value = c_folder->compute(inst->get_instr_type(),
                                                                  cast_to_const_int(inst->get_operand(0)),
@@ -83,10 +128,7 @@ void ConstPropagation::execute() {
                             auto cc_value = dynamic_cast<Value *>(const_value);
                             rvalue->replace_all_use_with(cc_value);
                         }
-                    } else if (inst->get_instr_type() == Instruction::fadd
-                               || inst->get_instr_type() == Instruction::fsub
-                               || inst->get_instr_type() == Instruction::fmul
-                               || inst->get_instr_type() == Instruction::fdiv) {
+                    } else if (inst->is_float_binary()) {
                         if (cast_to_const_float(inst->get_operand(0)) && cast_to_const_float(inst->get_operand(1))) {
                             auto const_value = c_folder->compute_f(inst->get_instr_type(),
                                                                    cast_to_const_float(inst->get_operand(0)),
@@ -101,66 +143,15 @@ void ConstPropagation::execute() {
                             int const_value1 = cast_to_const_int(inst->get_operand(0))->get_value();
                             int const_value2 = cast_to_const_int(inst->get_operand(1))->get_value();
                             auto rvalue = dynamic_cast<Value *>(inst);
-                            switch (cmp_inst->get_cmp_op()) {
-                                case CmpInst::EQ:
-                                    rvalue->replace_all_use_with(
-                                            ConstantInt::get((const_value1 == const_value2), module));
-                                    break;
-                                case CmpInst::LE:
-                                    rvalue->replace_all_use_with(
-                                            ConstantInt::get((const_value1 <= const_value2), module));
-                                    break;
-                                case CmpInst::LT:
-                                    rvalue->replace_all_use_with(
-                                            ConstantInt::get((const_value1 < const_value2), module));
-                                    break;
-                                case CmpInst::GE:
-                                    rvalue->replace_all_use_with(
-                                            ConstantInt::get((const_value1 >= const_value2), module));
-                                    break;
-                                case CmpInst::GT:
-                                    rvalue->replace_all_use_with(
-                                            ConstantInt::get((const_value1 > const_value2), module));
-                                    break;
-                                case CmpInst::NE:
-                                    rvalue->replace_all_use_with(
-                                            ConstantInt::get((const_value1 != const_value2), module));
-                                    break;
-                            }
+                            rvalue->replace_all_use_with(c_folder->GetCmpValue(cmp_inst->get_cmp_op(), const_value1, const_value2));
                         }
                     } else if (inst->get_instr_type() == Instruction::fcmp) {
-                        if (cast_to_const_float(inst->get_operand(0)) &&
-                            cast_to_const_float(inst->get_operand(1))) {
+                        if (cast_to_const_float(inst->get_operand(0)) && cast_to_const_float(inst->get_operand(1))) {
                             auto cmp_inst = dynamic_cast<FCmpInst *>(inst);
                             float const_value1 = cast_to_const_float(inst->get_operand(0))->get_value();
                             float const_value2 = cast_to_const_float(inst->get_operand(1))->get_value();
                             auto rvalue = dynamic_cast<Value *>(inst);
-                            switch (cmp_inst->get_cmp_op()) {
-                                case FCmpInst::EQ:
-                                    rvalue->replace_all_use_with(
-                                            ConstantInt::get((const_value1 == const_value2), module));
-                                    break;
-                                case FCmpInst::LE:
-                                    rvalue->replace_all_use_with(
-                                            ConstantInt::get((const_value1 <= const_value2), module));
-                                    break;
-                                case FCmpInst::LT:
-                                    rvalue->replace_all_use_with(
-                                            ConstantInt::get((const_value1 < const_value2), module));
-                                    break;
-                                case FCmpInst::GE:
-                                    rvalue->replace_all_use_with(
-                                            ConstantInt::get((const_value1 >= const_value2), module));
-                                    break;
-                                case FCmpInst::GT:
-                                    rvalue->replace_all_use_with(
-                                            ConstantInt::get((const_value1 > const_value2), module));
-                                    break;
-                                case FCmpInst::NE:
-                                    rvalue->replace_all_use_with(
-                                            ConstantInt::get((const_value1 != const_value2), module));
-                                    break;
-                            }
+                            rvalue->replace_all_use_with(c_folder->GetFCmpValue(cmp_inst->get_cmp_op(), const_value1, const_value2));
                         }
                     } else if (inst->get_instr_type() == Instruction::sitofp) {
                         if (cast_to_const_int(inst->get_operand(0))) {
